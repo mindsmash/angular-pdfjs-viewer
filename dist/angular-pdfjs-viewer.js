@@ -380,7 +380,8 @@
                 onPageLoad: '&',
                 scale: '=?',
                 src: '@?',
-                data: '=?'
+                data: '=?',
+                options: '=?'
             },
             link: function ($scope, $element, $attrs) {
                 $element.children().wrap('<div class="pdfjs" style="width: 100%; height: 100%;"></div>');
@@ -467,7 +468,7 @@
                         return;
                     }
 
-                    window.PDFViewerApplication.open(src || data);
+                    window.PDFViewerApplication.open(src || data, $scope.options);
                 });
 
                 // watch other attributes
@@ -500,4 +501,6 @@
             }
         };
     }]);
+
+    // 
 }();
