@@ -8,7 +8,7 @@
     'use strict';
 
     var module = angular.module('pdfjsViewer', []);
-    
+
     module.provider('pdfjsViewerConfig', function() {
         var config = {
             workerSrc: null,
@@ -17,33 +17,33 @@
             disableWorker: false,
             verbosity: null
         };
-        
+
         this.setWorkerSrc = function(src) {
             config.workerSrc = src;
         };
-        
+
         this.setCmapDir = function(dir) {
             config.cmapDir = dir;
         };
-        
+
         this.setImageDir = function(dir) {
             config.imageDir = dir;
         };
-        
+
         this.disableWorker = function(value) {
             if (typeof value === 'undefined') value = true;
             config.disableWorker = value;
         };
-        
+
         this.setVerbosity = function(level) {
             config.verbosity = level;
         };
-        
+
         this.$get = function() {
             return config;
         }
     });
-    
+
     module.run(['pdfjsViewerConfig', function(pdfjsViewerConfig) {
         if (pdfjsViewerConfig.workerSrc) {
             PDFJS.workerSrc = pdfjsViewerConfig.workerSrc;
@@ -56,7 +56,7 @@
         if (pdfjsViewerConfig.imageDir) {
             PDFJS.imageResourcesPath = pdfjsViewerConfig.imageDir;
         }
-        
+
         if (pdfjsViewerConfig.disableWorker) {
             PDFJS.disableWorker = true;
         }
@@ -67,7 +67,7 @@
             PDFJS.verbosity = pdfjsViewerConfig.verbosity;
         }
     }]);
-    
+
     module.directive('pdfjsViewer', ['$interval', function ($interval) {
         return {
             template: '<pdfjs-wrapper>\n' +
@@ -385,7 +385,15 @@
             },
             link: function ($scope, $element, $attrs) {
                 $element.children().wrap('<div class="pdfjs" style="width: 100%; height: 100%;"></div>');
-                
+
+                // workaround for unregistering pdfjs event listeners
+                var oldAddEntityListener = window.addEventListener.bind(window);
+                var registeredEventHandlers = [];
+                window.addEventListener = function(pEvent, pListener, pOptions) {
+                    registeredEventHandlers.push({event: pEvent, listener : pListener, options: pOptions});
+                    return oldAddEntityListener(pEvent, pListener, pOptions);
+                };
+
                 var initialised = false;
                 var loaded = {};
                 var numLoaded = 0;
@@ -399,11 +407,11 @@
 
                 function onPdfInit() {
                     initialised = true;
-                    
+
                     if ($attrs.removeMouseListeners === "true") {
                         window.removeEventListener('DOMMouseScroll', handleMouseWheel);
                         window.removeEventListener('mousewheel', handleMouseWheel);
-                        
+
                         var pages = document.querySelectorAll('.page');
                         angular.forEach(pages, function (page) {
                             angular.element(page).children().css('pointer-events', 'none');
@@ -411,14 +419,14 @@
                     }
                     if ($scope.onInit) $scope.onInit();
                 }
-                
+
                 var poller = $interval(function () {
                     if (!window.PDFViewerApplication) {
                         return;
                     }
 
                     var pdfViewer = window.PDFViewerApplication.pdfViewer;
-                    
+
                     if (pdfViewer) {
                         if ($scope.scale !== pdfViewer.currentScale) {
                             loaded = {};
@@ -433,26 +441,30 @@
                     angular.forEach(pages, function (page) {
                         var element = angular.element(page);
                         var pageNum = element.attr('data-page-number');
-                        
+
                         if (!element.attr('data-loaded')) {
                             delete loaded[pageNum];
                             return;
                         }
-                        
+
                         if (pageNum in loaded) return;
 
                         if (!initialised) onPdfInit();
-                        
+
                         if ($scope.onPageLoad) {
                             if ($scope.onPageLoad({page: pageNum}) === false) return;
                         }
-                        
+
                         loaded[pageNum] = true;
                         numLoaded++;
                     });
                 }, 200);
 
                 $element.on('$destroy', function() {
+                    window.addEventListener = oldAddEntityListener;
+                    registeredEventHandlers.forEach(function(element){
+                        window.removeEventListener(element.event, element.listener, element.options);
+                    });
                     $interval.cancel(poller);
                 });
 
