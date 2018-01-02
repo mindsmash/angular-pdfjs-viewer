@@ -15,7 +15,8 @@
             cmapDir: null,
             imageResourcesPath: null,
             disableWorker: false,
-            verbosity: null
+            verbosity: null,
+            disabledShortcuts: []
         };
 
         this.setWorkerSrc = function(src) {
@@ -37,6 +38,26 @@
 
         this.setVerbosity = function(level) {
             config.verbosity = level;
+        };
+
+        this.enableShortcut = function() {
+            if (!this.isShortcutEnabled.apply(arguments)) {
+                var shortcut = Array.prototype.slice.call(arguments).sort().join('-');
+                var idx = config.disabledShortcuts.indexOf(shortcut);
+                config.disabledShortcuts.splice(idx);
+            }
+        };
+
+        this.disableShortcut = function() {
+            if (this.isShortcutEnabled.apply(arguments)) {
+                var shortcut = Array.prototype.slice.call(arguments).sort().join('-');
+                config.disabledShortcuts.push(shortcut);
+            }
+        };
+
+        this.isShortcutEnabled = function() {
+            var shortcut = Array.prototype.slice.call(arguments).sort().join('-');
+            return config.disabledShortcuts.indexOf(shortcut) === -1;
         };
 
         this.$get = function() {
@@ -68,7 +89,7 @@
         }
     }]);
 
-    module.directive('pdfjsViewer', ['$interval', function ($interval) {
+    module.directive('pdfjsViewer', ['$interval', 'pdfjsViewerConfig', function ($interval, pdfjsViewerConfig) {
         return {
             templateUrl: file.folder + '../../pdf.js-viewer/viewer.html',
             restrict: 'E',
@@ -87,8 +108,24 @@
                 var oldAddEntityListener = window.addEventListener.bind(window);
                 var registeredEventHandlers = [];
                 window.addEventListener = function(pEvent, pListener, pOptions) {
-                    registeredEventHandlers.push({event: pEvent, listener : pListener, options: pOptions});
-                    return oldAddEntityListener(pEvent, pListener, pOptions);
+                    var listener = pListener;
+                    if (pEvent === 'keydown') {
+                        listener = function (evt) {
+                            var keys = [];
+                            var key = evt.key.toLowerCase();
+                            if (evt.ctrlKey) keys.push("control");
+                            if (evt.altKey) keys.push("alt");
+                            if (evt.shiftKey) keys.push("shift");
+                            if (evt.metaKey) keys.push("meta");
+                            if (keys.indexOf(key) === -1) keys.push(key);
+                            if (pdfjsViewerConfig.disabledShortcuts.indexOf(keys.sort().join('-')) === -1) {
+                                pListener(evt);
+                            }
+                        };
+                    }
+
+                    registeredEventHandlers.push({event: pEvent, listener: listener, options: pOptions});
+                    return oldAddEntityListener(pEvent, listener, pOptions);
                 };
 
                 var initialised = false;
