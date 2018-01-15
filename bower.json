@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "angular": "^1.5.8",
-    "pdf.js-viewer": "~1.6.211"
+    "pdf.js-viewer": "git@github.com:mindsmash/pdf.js-viewer.git#319587859911a8d3a621eb7c6d804634f0b406e6"
   },
   "ignore": [
     "**/.*",
